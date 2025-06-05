@@ -1,0 +1,203 @@
+```html name=campeonato-super-bomberman.html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campeonato Super Bomberman</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333; min-height: 100vh; padding: 20px;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+        .container { max-width: 1100px; width: 100%; margin: 0 auto; background: rgba(255, 255, 255, 0.98); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15); }
+        .header { text-align: center; margin-bottom: 40px; }
+        .title { font-size: 2.5em; color: #2c3e50; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); }
+        .bomb-emoji { font-size: 1.5em; display: inline-block; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+        .phase-indicator { display: inline-block; background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; padding: 10px 20px; border-radius: 25px; font-weight: bold; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3); transition: all 0.3s ease; }
+        .section-title { font-size: 1.8em; color: #2c3e50; margin-bottom: 20px; text-align: center; border-bottom: 3px solid #f0f0f0; padding-bottom: 10px; }
+        .standings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 40px; }
+        .player-card { background: #fff; border: 2px solid #e9ecef; color: #333; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 8px 15px rgba(0, 0, 0, 0.05); transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .player-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1); }
+        .player-card.qualified { background: linear-gradient(135deg, #48dbfb, #0abde3); border-color: #0abde3; color: white; }
+        .player-name { font-size: 1.3em; font-weight: bold; margin-bottom: 10px; }
+        .player-position { font-size: 1em; font-weight: bold; color: #74b9ff; margin-bottom: 10px; }
+        .player-card.qualified .player-position { color: white; }
+        .player-points { font-size: 1.8em; font-weight: bold; }
+        .matches-section { margin-bottom: 40px; }
+        .matches-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .match-card { background: white; border: 2px solid #e9ecef; border-radius: 15px; padding: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 15px; }
+        .match-card.played { background-color: #f8f9fa; }
+        .match-card:hover { border-color: #74b9ff; }
+        .match-date-picker { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 8px; }
+        .match-date-picker label { font-weight: bold; color: #555; font-size: 0.9em; }
+        .match-date-picker input[type="date"] { border: 1px solid #ddd; border-radius: 5px; padding: 5px; font-family: inherit; color: #333; background-color: #fff; }
+        .match-date-picker input[type="date"]:disabled { background-color: #e9ecef; color: #888; }
+        .match-players { display: flex; justify-content: center; align-items: center; }
+        .vs { color: #666; font-size: 1.2em; font-weight: bold; margin: 0 15px; }
+        .match-player-plate { position: relative; flex: 1; max-width: 150px; padding: 20px 10px 10px 10px; border-radius: 8px; border: 2px solid #555; background: linear-gradient(145deg, #e0e0e0, #c0c0c0); box-shadow: inset 0 0 5px rgba(0,0,0,0.3), 3px 3px 5px rgba(0,0,0,0.2); text-align: center; transition: all 0.4s ease, transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+        .match-player-name { font-weight: bold; font-size: 1.2em; color: #2c3e50; transition: color 0.4s ease; }
+        .match-status-text { position: absolute; top: 2px; left: 0; right: 0; font-size: 0.8em; font-weight: bold; text-transform: uppercase; opacity: 0; transition: opacity 0.3s ease; z-index: 5; }
+        .status-win { color: #27ae60; opacity: 1; }
+        .status-loss { color: #e74c3c; opacity: 1; text-shadow: 1px 1px #000; }
+        .winner-plate { transform: scale(1.1); z-index: 5; background: linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(255,255,255,0) 50%), linear-gradient(145deg, #fef8e2, #d5a121); border-color: #a37b12; box-shadow: inset 0 2px 2px rgba(255, 255, 230, 0.6), inset 0 -2px 2px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.3); }
+        .winner-plate .match-player-name { color: #4a3300; }
+        @keyframes burn-up { from { background-position: 0 100%; } to { background-position: 0 -15%; } }
+        .match-player-plate.is-burning { background-size: 100% 200%; background-repeat: no-repeat; background-image: linear-gradient(to top, #ff4800, #ff8c00, #ffc800, transparent 45%), linear-gradient(145deg, #e0e0e0, #c0c0c0); animation: burn-up 1.5s ease-in forwards; }
+        .loser-plate {
+            transform: scale(0.9); z-index: 1; background-color: #3d3d3d;
+            background-image: linear-gradient(135deg, transparent 49.7%, #1a1a1a 50%, #1a1a1a 50.3%, transparent 50.6%), linear-gradient(25deg, transparent 49.7%, #1a1a1a 50%, #1a1a1a 50.3%, transparent 50.6%), repeating-radial-gradient(circle at center, rgba(0,0,0,0.2), rgba(0,0,0,0.2) 1px, transparent 1px, transparent 100%) 0 0 / 5px 5px, linear-gradient(to bottom, #555, #222);
+            border-color: #111; box-shadow: inset 0 0 15px #000, 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        .loser-plate .match-player-name { color: #a0a0a0; text-shadow: 1px 1px 2px #000; }
+        .match-controls { transition: opacity 0.3s ease-out; }
+        .winner-btn { background: #f1f2f6; color: #333; border: 2px solid #dcdde1; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; flex: 1; }
+        .winner-btn:hover { transform: scale(1.05); border-color: #00b894; color: #00b894; }
+        .match-result { margin-top: 5px; font-weight: bold; color: #00b894; text-align: center; font-size: 1.1em; }
+        .final-section { background: linear-gradient(135deg, #ffeaa7, #fdcb6e); border-radius: 15px; padding: 30px; margin-top: 40px; text-align: center; box-shadow: 0 10px 30px rgba(253, 203, 110, 0.3); display: none; }
+        .final-title { font-size: 2em; color: #2c3e50; margin-bottom: 20px; }
+        .final-players { display: flex; justify-content: center; align-items: center; margin: 20px 0; }
+        .reset-btn { background: linear-gradient(135deg, #ff7675, #d63031); color: white; border: none; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-weight: bold; margin-top: 30px; transition: all 0.3s ease; font-size: 1em; }
+        .reset-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(214, 48, 49, 0.3); }
+        @media (max-width: 950px) { .standings { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .matches-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 480px) { .standings { grid-template-columns: 1fr; } .title { font-size: 2em; } .final-players { flex-direction: column; gap: 15px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header"><h1 class="title"><span class="bomb-emoji">💣</span> Campeonato Super Bomberman <span class="bomb-emoji">💣</span></h1><div class="phase-indicator" id="phaseIndicator">Fase de Grupos</div></header>
+        <section><h2 class="section-title">🏆 Classificação Geral</h2><div class="standings" id="standings"></div></section>
+        <section class="matches-section"><h2 class="section-title">⚔️ Partidas da Fase de Grupos</h2><div class="matches-grid" id="matchesGrid"></div></section>
+        <section class="final-section" id="finalSection">
+            <h2 class="final-title">🏁 GRANDE FINAL 🏁</h2>
+            <div class="match-date-picker"><label for="final-date">Data da Final:</label><input type="date" id="final-date" onchange="setFinalDate(this.value)"></div>
+            <div class="match-players final-players" id="finalPlayers"></div>
+            <div class="match-controls" id="finalControls"></div>
+            <div class="match-result" id="finalResult"></div>
+        </section>
+        <div style="text-align: center;"><button class="reset-btn" onclick="resetTournament()">🔄 Reiniciar Campeonato</button></div>
+    </div>
+
+    <script>
+        // ATUALIZADO: Raul trocado por Victor
+        const players = ['Rony', 'Thais', 'Luana', 'Mauro', 'Bianca', 'Victor'];
+        
+        let playerStats = {}, matches = [], finalists = [], champion = null, finalMatchData = { date: null };
+
+        function launchFireworks() {
+            confetti({
+                particleCount: 200, spread: 180, origin: { x: 0.5, y: 0.5 },
+                startVelocity: 45, decay: 0.92, gravity: 0.8, scalar: 0.7,
+                shapes: ['circle', 'square'], colors: ['#FFFFFF', '#FFD700', '#FFA500']
+            });
+            setTimeout(() => {
+                confetti({
+                    particleCount: 100, spread: 360, origin: { x: 0.5, y: 0.5 },
+                    startVelocity: 30, decay: 0.9, gravity: 0.8, scalar: 0.4,
+                    shapes: ['circle'], colors: ['#FFFFFF', '#FFD700']
+                });
+            }, 50);
+        }
+        function burnPlateEffect(loserPlate) {
+            loserPlate.classList.add('is-burning');
+            loserPlate.addEventListener('animationend', (event) => {
+                if (event.animationName === 'burn-up') {
+                    loserPlate.classList.remove('is-burning');
+                    loserPlate.classList.add('loser-plate');
+                    const loserStatus = loserPlate.querySelector('.match-status-text');
+                    loserStatus.textContent = 'Derrota';
+                    loserStatus.classList.add('status-loss');
+                }
+            }, { once: true });
+        }
+        function applyMatchEndEffects(winnerPlate, loserPlate) {
+            launchFireworks();
+            winnerPlate.classList.add('winner-plate');
+            const winnerStatus = winnerPlate.querySelector('.match-status-text');
+            winnerStatus.textContent = 'Vitória';
+            winnerStatus.classList.add('status-win');
+            burnPlateEffect(loserPlate);
+        }
+        function initializeStats() { playerStats = {}; players.forEach(p => { playerStats[p] = { points: 0, wins: 0, losses: 0 }; }); }
+        function generateMatches() { matches = []; for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) matches.push({ player1: players[i], player2: players[j], winner: null, played: false, date: null }); }
+        function renderStandings() { const standingsDiv = document.getElementById('standings'); const sortedPlayers = Object.keys(playerStats).sort((a, b) => { const p = playerStats[b].points - playerStats[a].points; return p !== 0 ? p : playerStats[b].wins - playerStats[a].wins; }); const allPlayed = allMatchesPlayed(); standingsDiv.innerHTML = sortedPlayers.map((player, index) => { const stats = playerStats[player], isQ = index < 2 && allPlayed; return `<div class="player-card ${isQ ? 'qualified' : ''}"><div class="player-position">${index + 1}º</div><div class="player-name">${player}</div><div class="player-points">${stats.points} pts</div><small>${stats.wins}V - ${stats.losses}D</small></div>`; }).join(''); }
+        function setMatchDate(i, d) { matches[i].date = d; }
+        function renderMatches() {
+            const matchesGrid = document.getElementById('matchesGrid');
+            matchesGrid.innerHTML = matches.map((match, index) => `
+                <div class="match-card ${match.played ? 'played' : ''}" id="match-card-${index}">
+                    <div class="match-date-picker"><label for="date-${index}">Data:</label><input type="date" id="date-${index}" value="${match.date || ''}" onchange="setMatchDate(${index}, this.value)" ${match.played ? 'disabled' : ''}></div>
+                    <div class="match-players">
+                        <div class="match-player-plate" id="plate-${index}-p1"><div class="match-status-text"></div><div class="match-player-name">${match.player1}</div></div>
+                        <div class="vs">vs</div>
+                        <div class="match-player-plate" id="plate-${index}-p2"><div class="match-status-text"></div><div class="match-player-name">${match.player2}</div></div>
+                    </div>
+                    <div class="match-controls"><button class="winner-btn" id="btn-${index}-${match.player1}" onclick="setWinner(this, ${index}, '${match.player1}')" ${match.played ? 'disabled' : ''}>${match.player1} Venceu</button><button class="winner-btn" id="btn-${index}-${match.player2}" onclick="setWinner(this, ${index}, '${match.player2}')" ${match.played ? 'disabled' : ''}>${match.player2} Venceu</button></div>
+                </div>`).join('');
+        }
+        function setWinner(buttonElement, matchIndex, winner) {
+            const match = matches[matchIndex];
+            if (match.played) return;
+            match.winner = winner; match.played = true; const loser = winner === match.player1 ? match.player2 : match.player1;
+            playerStats[winner].points += 3; playerStats[winner].wins += 1; playerStats[loser].losses += 1;
+            const winnerPlate = document.getElementById(winner === match.player1 ? `plate-${matchIndex}-p1` : `plate-${matchIndex}-p2`);
+            const loserPlate = document.getElementById(loser === match.player1 ? `plate-${matchIndex}-p1` : `plate-${matchIndex}-p2`);
+            applyMatchEndEffects(winnerPlate, loserPlate);
+            updateMatchUI(matchIndex); renderStandings();
+            if (allMatchesPlayed()) { setTimeout(showFinal, 1600); }
+        }
+        function updateMatchUI(matchIndex) {
+            const card = document.getElementById(`match-card-${matchIndex}`);
+            card.classList.add('played');
+            const controlsDiv = card.querySelector('.match-controls');
+            if (controlsDiv) { controlsDiv.style.display = 'none'; }
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'match-result';
+            resultDiv.innerHTML = `🏆 Vencedor(a): ${matches[matchIndex].winner}`;
+            card.appendChild(resultDiv);
+            document.getElementById(`date-${matchIndex}`).disabled = true;
+        }
+        function allMatchesPlayed() { return matches.every(match => match.played); }
+        function showFinal() {
+            const sortedPlayers = Object.keys(playerStats).sort((a, b) => { const p = playerStats[b].points - playerStats[a].points; return p !== 0 ? p : playerStats[b].wins - playerStats[a].wins; });
+            finalists = [sortedPlayers[0], sortedPlayers[1]];
+            document.getElementById('phaseIndicator').textContent = 'A GRANDE FINAL'; document.getElementById('phaseIndicator').style.background = 'linear-gradient(45deg, #fdcb6e, #e17055)';
+            document.getElementById('finalPlayers').innerHTML = `<div class="match-player-plate" id="plate-final-p1"><div class="match-status-text"></div><div class="match-player-name">${finalists[0]}</div></div><div class="vs">vs</div><div class="match-player-plate" id="plate-final-p2"><div class="match-status-text"></div><div class="match-player-name">${finalists[1]}</div></div>`;
+            document.getElementById('finalControls').innerHTML = `<button class="winner-btn" onclick="setFinalWinner(this, 0)">${finalists[0]} Venceu</button><button class="winner-btn" onclick="setFinalWinner(this, 1)">${finalists[1]} Venceu</button>`;
+            document.getElementById('finalSection').style.display = 'block'; document.getElementById('finalSection').scrollIntoView({ behavior: 'smooth' });
+        }
+        function setFinalDate(d) { finalMatchData.date = d; }
+        function setFinalWinner(buttonElement, winnerIndex) {
+            if (champion) return;
+            champion = finalists[winnerIndex]; const loserIndex = winnerIndex === 0 ? 1 : 0;
+            const winnerPlate = document.getElementById(`plate-final-p${winnerIndex + 1}`); const loserPlate = document.getElementById(`plate-final-p${loserIndex + 1}`);
+            applyMatchEndEffects(winnerPlate, loserPlate);
+            document.getElementById('finalControls').style.display = 'none';
+            document.getElementById('final-date').disabled = true;
+            document.getElementById('finalResult').innerHTML = `<br>🎉 <strong>${champion.toUpperCase()} É O(A) GRANDE CAMPEÃO(Ã)!</strong> 🎉`;
+            document.getElementById('phaseIndicator').innerHTML = `🏆 CAMPEÃO(Ã): ${champion} 🏆`; document.getElementById('phaseIndicator').style.background = 'linear-gradient(45deg, #00b894, #00a085)';
+        }
+        function resetTournament() {
+            if (!confirm('Tem certeza que deseja reiniciar todo o campeonato?')) { return; }
+            initializeStats(); generateMatches();
+            finalists = [], champion = null, finalMatchData = { date: null };
+            document.getElementById('phaseIndicator').textContent = 'Fase de Grupos'; document.getElementById('phaseIndicator').style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a24)';
+            const finalSection = document.getElementById('finalSection');
+            finalSection.style.display = 'none';
+            const finalControls = document.getElementById('finalControls');
+            if(finalControls) finalControls.style.display = 'flex';
+            document.getElementById('finalResult').innerHTML = '';
+            document.getElementById('final-date').value = ''; document.getElementById('final-date').disabled = false;
+            renderStandings(); renderMatches(); window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        document.addEventListener('DOMContentLoaded', () => { initializeStats(); generateMatches(); renderStandings(); renderMatches(); });
+    </script>
+</body>
+</html>
+```
